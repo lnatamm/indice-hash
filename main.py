@@ -2,6 +2,7 @@ from entities.tabela import Table
 from entities.tupla import Tuple
 from entities.pagina import Page
 from entities.bucket import Bucket
+from utils.hash import Hasher
 import json
 
 page_size = 1_000
@@ -21,9 +22,16 @@ for key, value in data.items():
         )
     )
 
-number_of_buckets = len(data.items()) / bucket_size
-buckets = []
-for nth_bucket in number_of_buckets:
-    buckets.append(Bucket(id=nth_bucket, size=bucket_size))
+table.generate_hashes(bucket_size)
+
+search_word = ""
+
+nth_page = hash_index[Hasher.hash(search_word)]
+page = tabela.get_page(nth_page)
+
+for tuple in page.get_data():
+    if tuple.get_key().upper() == search_word.upper():
+        print("Achei")
+
 
 table.generate_hashes(buckets=buckets)
