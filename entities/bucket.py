@@ -16,4 +16,7 @@ class Bucket:
             self.overflow_bucket.insert_value(value)
             
     def get_data(self):
-        return self.data
+        if self.overflow_bucket is None:
+            return self.data
+        else:
+            return self.data + self.overflow_bucket.get_data()

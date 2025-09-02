@@ -1,5 +1,7 @@
 from entities.tupla import Tuple
 from entities.pagina import Page
+from entities.bucket import Bucket
+from utils.hash import Hasher
 
 
 class Table:
@@ -32,16 +34,49 @@ class Table:
 
     def generate_hashes(self, bucket_size):
         n_collisions = 0
-        for nth_page, page in enumerate(table.get_pages()):
+        for nth_page, page in enumerate(self.pages):
             for tuple in page.get_data():
-                hash = Hasher.hash(tupla.get_key())
-                if hash in hash_index.keys():
+                hashed_key = Hasher.custom_hash(tuple.get_key())
+                if hashed_key in self.hash_index.keys():
                     n_collisions += 1
-                    print(f"{n_collisions}° Collision! Hash: {hash}")
-                    self.hash_index[hash].insert_value(nth_page)
+                    print(f"{n_collisions}° Collision! Hash: {hashed_key}")
+                    self.hash_index[hashed_key].insert_value(
+                        {
+                            "key": tuple.get_key(),
+                            "page": nth_page
+                        }
+                    )
                 else:
-                    self.hash_index[hash] = Bucket(bucket_size)
-                    self.hash_index[hash].insert_value(nth_page)
+                    self.hash_index[hashed_key] = Bucket(bucket_size)
+                    self.hash_index[hashed_key].insert_value(
+                        {
+                            "key": tuple.get_key(),
+                            "page": nth_page
+                        }
+                    )
+
+    def search(self, key):
+        for nth_page, page in enumerate(self.pages):
+            for tuple in page.get_data():
+                if tuple.get_key() == key:
+                    return tuple.get_key()
+        return None
+
+    def _get_page_by_key(self, key, hashed_key):
+        if hashed_key in self.hash_index.keys():
+            for value in self.hash_index[hashed_key].get_data():
+                if value["key"] == key:
+                    return self.pages[value["page"]]
+        return None
+
+    def search_with_hash(self, key):
+        hashed_key = Hasher.custom_hash(key)
+        if hashed_key in self.hash_index.keys():
+            page = self._get_page_by_key(key, hashed_key)
+            for tuple in page.get_data():
+                if tuple.get_key() == key:
+                    return tuple.get_key()
+        return None
 
     def get_pages(self):
         return self.pages

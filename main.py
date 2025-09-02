@@ -1,8 +1,6 @@
 from entities.tabela import Table
 from entities.tupla import Tuple
-from entities.pagina import Page
-from entities.bucket import Bucket
-from utils.hash import Hasher
+import time
 import json
 
 page_size = 1_000
@@ -24,14 +22,14 @@ for key, value in data.items():
 
 table.generate_hashes(bucket_size)
 
-search_word = ""
+search_word = "zwitterionic"
 
-nth_page = hash_index[Hasher.hash(search_word)]
-page = tabela.get_page(nth_page)
+timer_start = time.time()
+result = table.search_with_hash(search_word)
+timer_end = time.time()
+print(f"Search with hash for '{search_word}': {result} (took {timer_end - timer_start:.30f} seconds)")
 
-for tuple in page.get_data():
-    if tuple.get_key().upper() == search_word.upper():
-        print("Achei")
-
-
-table.generate_hashes(buckets=buckets)
+timer_start = time.time()
+result = table.search(search_word)
+timer_end = time.time()
+print(f"Search without hash for '{search_word}': {result} (took {timer_end - timer_start:.30f} seconds)")

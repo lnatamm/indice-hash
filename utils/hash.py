@@ -1,4 +1,4 @@
 class Hasher:
     @staticmethod
-    def hash(key):
-        pass
+    def custom_hash(key):
+        return hash(key)
