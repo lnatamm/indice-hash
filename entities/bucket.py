@@ -1,6 +1,5 @@
 class Bucket:
-    def __init__(self, id, size):
-        self.id = id
+    def __init__(self, size):
         self.size = size
         self.data = []
         self.overflow_bucket: Bucket = None
