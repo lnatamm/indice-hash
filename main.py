@@ -6,11 +6,13 @@ import json
 page_size = 1_000
 bucket_size = 100
 
-table = Table(page_size=page_size)
-
 # Carregar o JSON da pasta data
 with open('data/words_dictionary.json', 'r', encoding='utf-8') as file:
     data = json.load(file)
+
+number_of_buckets = len(data) // bucket_size
+
+table = Table(page_size=page_size, hash_type="custom", number_of_buckets=number_of_buckets)
 
 for key, value in data.items():
     table.insert(
@@ -27,9 +29,11 @@ search_word = "zwitterionic"
 timer_start = time.time()
 result = table.search_with_hash(search_word)
 timer_end = time.time()
-print(f"Search with hash for '{search_word}': {result} (took {timer_end - timer_start:.30f} seconds)")
+print(f"Time Start: {timer_start}")
+print(f"Time End: {timer_end}")
+print(f"Search with hash for '{search_word}': {result} (took {timer_end - timer_start:.60f} seconds)")
 
 timer_start = time.time()
 result = table.search(search_word)
 timer_end = time.time()
-print(f"Search without hash for '{search_word}': {result} (took {timer_end - timer_start:.30f} seconds)")
+print(f"Search without hash for '{search_word}': {result} (took {timer_end - timer_start:.60f} seconds)")

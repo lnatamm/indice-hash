@@ -5,10 +5,16 @@ from utils.hash import Hasher
 
 
 class Table:
-    def __init__(self, page_size) -> None:
+    def __init__(self, page_size, hash_type: str="python", number_of_buckets: int=0) -> None:
         self.pages: list[Page] = [Page(size=page_size)]
         self.page_size = page_size
         self.hash_index = {}
+        if hash_type.lower() == "python":
+            self.hash_function = Hasher().python_hash
+        elif hash_type.lower() == "custom":
+            self.hash_function = Hasher(number_of_buckets).custom_hash
+        else:
+            raise ValueError("hash_type deve ser 'python' ou 'custom'")
         
     def insert_page(self, page):
         self.pages.append(page)
@@ -36,7 +42,7 @@ class Table:
         n_collisions = 0
         for nth_page, page in enumerate(self.pages):
             for tuple in page.get_data():
-                hashed_key = Hasher.custom_hash(tuple.get_key())
+                hashed_key = self.hash_function(tuple.get_key())
                 if hashed_key in self.hash_index.keys():
                     n_collisions += 1
                     print(f"{n_collisions}° Collision! Hash: {hashed_key}")
@@ -70,7 +76,7 @@ class Table:
         return None
 
     def search_with_hash(self, key):
-        hashed_key = Hasher.custom_hash(key)
+        hashed_key = self.hash_function(key)
         if hashed_key in self.hash_index.keys():
             page = self._get_page_by_key(key, hashed_key)
             for tuple in page.get_data():

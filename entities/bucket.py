@@ -5,7 +5,7 @@ class Bucket:
         self.overflow_bucket: Bucket = None
     
     def _create_overflow_bucket(self):
-        self.overflow_bucket = Bucket(id=self.id, size=self.size)
+        self.overflow_bucket = Bucket(size=self.size)
 
     def insert_value(self, value):
         if len(self.data) < self.size:
