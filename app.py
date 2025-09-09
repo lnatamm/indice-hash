@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # Título da aplicação
-st.title("🔍 Sistema de Índice Hash")
+st.title("Sistema de Índice Hash")
 st.markdown("---")
 
 # Inicializar estado da sessão
@@ -22,14 +22,15 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 if 'search_results' not in st.session_state:
     st.session_state.search_results = {}
+if 'statistics' not in st.session_state:
+    st.session_state.statistics = {}
 
 # Sidebar para configurações
-st.sidebar.header("⚙️ Configurações")
+st.sidebar.header("Configurações")
 
-# Configurações da página
-st.sidebar.subheader("📄 Configurações da Página")
+# Tamanho da página
 page_size = st.sidebar.number_input(
-    "Tamanho da Página",
+    "Tamanho da Página (FR)",
     min_value=100,
     max_value=10000,
     value=1000,
@@ -37,45 +38,38 @@ page_size = st.sidebar.number_input(
     help="Número de tuplas por página"
 )
 
-# Configurações do bucket
-st.sidebar.subheader("🪣 Configurações do Bucket")
+# Tamanho do bucket
 bucket_size = st.sidebar.number_input(
     "Tamanho do Bucket",
     min_value=5,
     max_value=100,
     value=10,
     step=5,
-    help="Número de elementos por bucket"
+    help="Número máximo de tuplas por bucket"
 )
 
-# Configurações da chave hash
-st.sidebar.subheader("🔑 Configurações da Chave Hash")
-hash_key_size = st.sidebar.number_input(
-    "Tamanho da Chave Hash (n)",
-    min_value=10000,
-    max_value=1000000,
-    value=300000,
-    step=10000,
-    help="Tamanho do espaço de hash"
-)
-
+# Tipo de hash
 hash_type = st.sidebar.selectbox(
-    "Tipo de Hash",
+    "Função Hash",
     ["custom", "python"],
-    help="Escolha entre hash customizado ou hash nativo do Python"
+    help="Escolha entre hash customizado ou nativo do Python"
 )
 
 # Botão para carregar dados
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Carregar Dados", type="primary"):
-    with st.spinner("Carregando dados e criando índice..."):
+if st.sidebar.button("Carregar Dados", type="primary"):
+    with st.spinner("Carregando dados e construindo índice..."):
         try:
             # Carregar o JSON da pasta data
             with open('data/words_dictionary.json', 'r', encoding='utf-8') as file:
                 data = json.load(file)
             
+            # Calcular número de buckets (NB > NR / FR)
+            nr = len(data)  # Cardinalidade da tabela
+            nb = max(1, (nr // bucket_size) + 1)  # Número de buckets
+            
             # Criar tabela
-            table = Table(page_size=page_size, hash_type=hash_type, n=hash_key_size)
+            table = Table(page_size=page_size, hash_type=hash_type, n=300_000)
             
             # Inserir dados
             for key, value in data.items():
@@ -89,136 +83,260 @@ if st.sidebar.button("🔄 Carregar Dados", type="primary"):
             # Gerar hashes
             table.generate_hashes(bucket_size)
             
+            # Calcular estatísticas
+            total_collisions = 0
+            total_overflows = 0
+            
+            for bucket in table.hash_index.values():
+                bucket_data = bucket.get_data()
+                if len(bucket_data) > bucket_size:
+                    total_overflows += 1
+                if len(bucket_data) > 1:
+                    total_collisions += len(bucket_data) - 1
+            
+            collision_rate = (total_collisions / nr) * 100 if nr > 0 else 0
+            overflow_rate = (total_overflows / len(table.hash_index)) * 100 if len(table.hash_index) > 0 else 0
+            
             # Salvar no estado da sessão
             st.session_state.table = table
             st.session_state.data_loaded = True
+            st.session_state.statistics = {
+                'total_tuples': nr,
+                'total_pages': len(table.get_pages()),
+                'total_buckets': len(table.hash_index),
+                'total_collisions': total_collisions,
+                'total_overflows': total_overflows,
+                'collision_rate': collision_rate,
+                'overflow_rate': overflow_rate
+            }
             
-            st.sidebar.success(f"✅ Dados carregados com sucesso!")
-            st.sidebar.info(f"📊 Total de palavras: {len(data)}")
-            st.sidebar.info(f"📄 Páginas criadas: {len(table.get_pages())}")
+            st.sidebar.success("Dados carregados com sucesso!")
             
         except Exception as e:
-            st.sidebar.error(f"❌ Erro ao carregar dados: {str(e)}")
+            st.sidebar.error(f"Erro ao carregar dados: {str(e)}")
 
 # Área principal
-if st.session_state.data_loaded:
-    st.success("✅ Dados carregados e prontos para busca!")
+if st.session_state.data_loaded and st.session_state.statistics and 'total_tuples' in st.session_state.statistics:
+    stats = st.session_state.statistics
     
-    # Seção de busca
-    st.header("🔍 Busca de Palavras")
-    
-    col1, col2 = st.columns([2, 1])
+    # Estatísticas do sistema
+    st.header("Estatísticas do Sistema")
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        search_word = st.text_input(
-            "Digite a palavra para buscar:",
-            placeholder="Ex: zwitterionic",
-            help="Digite a palavra que deseja buscar no dicionário"
-        )
+        st.metric("Total de Tuplas", stats['total_tuples'])
+    with col2:
+        st.metric("Total de Páginas", stats['total_pages'])
+    with col3:
+        st.metric("Total de Buckets", stats['total_buckets'])
+    with col4:
+        st.metric("Taxa de Colisões", f"{stats['collision_rate']:.2f}%")
+    
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        st.metric("Taxa de Overflows", f"{stats['overflow_rate']:.2f}%")
+    with col6:
+        st.metric("Total de Colisões", stats['total_collisions'])
+    with col7:
+        st.metric("Total de Overflows", stats['total_overflows'])
+    with col8:
+        st.metric("Tamanho da Página", page_size)
+    
+    st.markdown("---")
+    
+    # Visualização das estruturas de dados
+    st.header("Visualização das Estruturas de Dados")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Estrutura da Tabela")
+        st.markdown(f"""
+        - **Total de Tuplas**: {stats['total_tuples']}
+        - **Total de Páginas**: {stats['total_pages']}
+        - **Tuplas por Página**: {page_size}
+        """)
+        
+        # Mostrar algumas páginas como exemplo
+        if st.button("Mostrar Exemplo de Páginas"):
+            st.write("**Primeiras 3 páginas:**")
+            for i in range(min(3, len(st.session_state.table.get_pages()))):
+                page = st.session_state.table.get_pages()[i]
+                page_data = page.get_data()
+                st.write(f"**Página {i+1}**: {len(page_data)} tuplas")
+                if page_data:
+                    st.write(f"Primeira tupla: {page_data[0].get_key()}")
+                    if len(page_data) > 1:
+                        st.write(f"Última tupla: {page_data[-1].get_key()}")
     
     with col2:
-        st.markdown("### Ações")
-        col_search_hash, col_search_normal = st.columns(2)
+        st.subheader("Estrutura do Índice Hash")
+        st.markdown(f"""
+        - **Total de Buckets**: {stats['total_buckets']}
+        - **Tamanho do Bucket**: {bucket_size}
+        - **Taxa de Colisões**: {stats['collision_rate']:.2f}%
+        - **Taxa de Overflows**: {stats['overflow_rate']:.2f}%
+        """)
         
-        with col_search_hash:
-            search_with_hash = st.button(
-                "🔍 Buscar com Índice",
-                type="primary",
-                help="Busca usando o índice hash (mais rápido)"
-            )
+        # Mostrar alguns buckets como exemplo
+        if st.button("Mostrar Exemplo de Buckets"):
+            st.write("**Primeiros 3 buckets:**")
+            bucket_count = 0
+            for hash_key, bucket in st.session_state.table.hash_index.items():
+                if bucket_count >= 3:
+                    break
+                bucket_data = bucket.get_data()
+                st.write(f"**Bucket {hash_key}**: {len(bucket_data)} entradas")
+                if bucket_data:
+                    st.write(f"Primeira entrada: {bucket_data[0]['key']} -> Página {bucket_data[0]['page']}")
+                bucket_count += 1
+    
+    st.markdown("---")
+    
+    # Seção de busca
+    st.header("Busca de Chaves")
+    
+    search_word = st.text_input(
+        "Chave de Busca:",
+        placeholder="Digite uma palavra para buscar",
+        help="Digite a chave que deseja buscar no dicionário"
+    )
+    
+    if search_word:
+        col1, col2 = st.columns(2)
         
-        with col_search_normal:
-            search_without_hash = st.button(
-                "🔍 Buscar sem Índice",
-                help="Busca sequencial (mais lenta)"
-            )
-    
-    # Processar buscas
-    if search_with_hash and search_word:
-        with st.spinner("Buscando com índice hash..."):
-            timer_start = time.time()
-            result = st.session_state.table.search_with_hash(search_word)
-            timer_end = time.time()
-            
-            search_time = timer_end - timer_start
-            
-            st.session_state.search_results['with_hash'] = {
-                'word': search_word,
-                'result': result,
-                'time': search_time,
-                'method': 'Com Índice Hash'
-            }
-    
-    if search_without_hash and search_word:
-        with st.spinner("Buscando sem índice..."):
-            timer_start = time.time()
-            result = st.session_state.table.search(search_word)
-            timer_end = time.time()
-            
-            search_time = timer_end - timer_start
-            
-            st.session_state.search_results['without_hash'] = {
-                'word': search_word,
-                'result': result,
-                'time': search_time,
-                'method': 'Sem Índice'
-            }
+        with col1:
+            if st.button("Buscar com Índice Hash", type="primary"):
+                with st.spinner("Buscando com índice hash..."):
+                    timer_start = time.time()
+                    result = st.session_state.table.search_with_hash(search_word)
+                    timer_end = time.time()
+                    
+                    search_time = timer_end - timer_start
+                    
+                    # Encontrar a página onde a chave foi encontrada
+                    page_found = None
+                    if result:
+                        hashed_key = st.session_state.table.hash_function(search_word)
+                        if hashed_key in st.session_state.table.hash_index:
+                            bucket_data = st.session_state.table.hash_index[hashed_key].get_data()
+                            for entry in bucket_data:
+                                if entry['key'] == search_word:
+                                    page_found = entry['page'] + 1  # +1 para mostrar página 1-indexed
+                                    break
+                    
+                    # Calcular custo (acessos a disco)
+                    disk_accesses = 1  # Uma página lida
+                    
+                    st.session_state.search_results['with_hash'] = {
+                        'word': search_word,
+                        'result': result,
+                        'time': search_time,
+                        'disk_accesses': disk_accesses,
+                        'page_found': page_found,
+                        'method': 'Busca com Índice Hash'
+                    }
+        
+        with col2:
+            if st.button("Table Scan"):
+                with st.spinner("Executando Table Scan..."):
+                    timer_start = time.time()
+                    result = None
+                    pages_read = 0
+                    page_found = None
+                    
+                    # Simular table scan
+                    for page_num, page in enumerate(st.session_state.table.get_pages()):
+                        pages_read += 1
+                        for tuple in page.get_data():
+                            if tuple.get_key() == search_word:
+                                result = tuple.get_key()
+                                page_found = page_num + 1  # +1 para mostrar página 1-indexed
+                                break
+                        if result:
+                            break
+                    
+                    timer_end = time.time()
+                    search_time = timer_end - timer_start
+                    
+                    st.session_state.search_results['table_scan'] = {
+                        'word': search_word,
+                        'result': result,
+                        'time': search_time,
+                        'pages_read': pages_read,
+                        'page_found': page_found,
+                        'method': 'Table Scan'
+                    }
     
     # Exibir resultados
     if st.session_state.search_results:
         st.markdown("---")
-        st.header("📊 Resultados da Busca")
+        st.header("Resultados da Busca")
         
         for key, result_data in st.session_state.search_results.items():
-            with st.expander(f"🔍 {result_data['method']} - Palavra: '{result_data['word']}'", expanded=True):
-                col1, col2, col3 = st.columns(3)
+            with st.expander(f"{result_data['method']} - Chave: '{result_data['word']}'", expanded=True):
+                col1, col2, col3, col4, col5 = st.columns(5)
                 
                 with col1:
                     st.metric("Método", result_data['method'])
                 
                 with col2:
                     if result_data['result']:
-                        st.metric("Resultado", "✅ Encontrada")
+                        st.metric("Resultado", "Encontrada")
                     else:
-                        st.metric("Resultado", "❌ Não encontrada")
+                        st.metric("Resultado", "Não encontrada")
                 
                 with col3:
                     st.metric("Tempo", f"{result_data['time']:.9f}s")
                 
-                if result_data['result']:
-                    st.success(f"✅ Palavra '{result_data['word']}' encontrada!")
-                else:
-                    st.warning(f"❌ Palavra '{result_data['word']}' não encontrada no dicionário.")
+                with col4:
+                    if result_data['result'] and result_data.get('page_found'):
+                        st.metric("Página Encontrada", f"Página {result_data['page_found']}")
+                    else:
+                        st.metric("Página Encontrada", "N/A")
                 
-                st.code(f"Tempo de execução: {result_data['time']:.9f} segundos")
+                with col5:
+                    if 'disk_accesses' in result_data:
+                        st.metric("Acessos a Disco", result_data['disk_accesses'])
+                    elif 'pages_read' in result_data:
+                        st.metric("Páginas Lidas", result_data['pages_read'])
+                
+                if result_data['result']:
+                    st.success(f"Chave '{result_data['word']}' encontrada na Página {result_data.get('page_found', 'N/A')}!")
+                else:
+                    st.warning(f"Chave '{result_data['word']}' não encontrada no dicionário.")
+                
+                # Mostrar custo estimado
+                if 'disk_accesses' in result_data:
+                    st.info(f"Custo estimado: {result_data['disk_accesses']} acesso(s) a disco")
+                elif 'pages_read' in result_data:
+                    st.info(f"Custo estimado: {result_data['pages_read']} página(s) lida(s)")
 
 else:
-    st.info("👈 Configure as opções na barra lateral e clique em 'Carregar Dados' para começar.")
+    st.info("Configure as opções na barra lateral e clique em 'Carregar Dados' para começar.")
     
     # Mostrar informações sobre o sistema
     st.markdown("---")
-    st.header("ℹ️ Sobre o Sistema")
+    st.header("Sobre o Sistema")
     
-    col1, col2 = st.columns(2)
+    st.markdown("""
+    Este sistema implementa um índice hash para busca eficiente de palavras em um dicionário.
     
-    with col1:
-        st.subheader("🎯 Funcionalidades")
-        st.markdown("""
-        - **Busca com Índice Hash**: Utiliza estrutura de hash para busca rápida
-        - **Busca Sequencial**: Busca linear através de todas as páginas
-        - **Configuração Flexível**: Ajuste tamanhos de página, bucket e chave hash
-        - **Comparação de Performance**: Compare tempos de execução dos métodos
-        """)
+    **Funcionalidades:**
+    - Construção do índice hash com resolução de colisões
+    - Busca por chave usando o índice construído
+    - Table Scan para comparação de performance
+    - Estatísticas de colisões e overflows
+    - Cálculo de custos de acesso a disco
     
-    with col2:
-        st.subheader("⚙️ Configurações Disponíveis")
-        st.markdown("""
-        - **Tamanho da Página**: Número de tuplas por página
-        - **Tamanho do Bucket**: Elementos por bucket no índice hash
-        - **Chave Hash**: Tamanho do espaço de hash (n)
-        - **Tipo de Hash**: Customizado ou nativo do Python
-        """)
+    **Estruturas de Dados:**
+    - **Tupla**: Representa uma linha da tabela
+    - **Tabela**: Contém todas as tuplas
+    - **Página**: Divisão física da tabela
+    - **Bucket**: Mapeia chaves em endereços de páginas
+    - **Função Hash**: Mapeia chaves em endereços de buckets
+    """)
 
 # Footer
 st.markdown("---")
-st.markdown("🔍 **Sistema de Índice Hash** - Desenvolvido para comparação de performance entre busca com e sem índice")
+st.markdown("Sistema de Índice Hash - Implementação didática")
