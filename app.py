@@ -43,8 +43,8 @@ bucket_size = st.sidebar.number_input(
     "Tamanho do Bucket",
     min_value=5,
     max_value=100,
-    value=10,
-    step=5,
+    value=5,
+    step=1,
     help="Número máximo de tuplas por bucket"
 )
 
@@ -81,18 +81,14 @@ if st.sidebar.button("Carregar Dados", type="primary"):
                 )
             
             # Gerar hashes
-            table.generate_hashes(bucket_size)
+            total_collisions = table.generate_hashes(bucket_size)
             
             # Calcular estatísticas
-            total_collisions = 0
             total_overflows = 0
-            
+
             for bucket in table.hash_index.values():
                 bucket_data = bucket.get_data()
-                if len(bucket_data) > bucket_size:
-                    total_overflows += 1
-                if len(bucket_data) > 1:
-                    total_collisions += len(bucket_data) - 1
+                total_overflows += bucket.get_overflow_count()
             
             collision_rate = (total_collisions / nr) * 100 if nr > 0 else 0
             overflow_rate = (total_overflows / len(table.hash_index)) * 100 if len(table.hash_index) > 0 else 0

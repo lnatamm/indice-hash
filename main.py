@@ -4,7 +4,7 @@ import time
 import json
 
 page_size = 1_000
-bucket_size = 10
+bucket_size = 1
 
 # Carregar o JSON da pasta data
 with open('data/words_dictionary.json', 'r', encoding='utf-8') as file:
@@ -23,6 +23,10 @@ for key, value in data.items():
     )
 
 table.generate_hashes(bucket_size)
+total_overflows = 0
+for bucket in table.hash_index.values():
+    total_overflows += bucket.get_overflow_count()
+print(f"Total Overflows: {total_overflows}")
 
 search_word = "zwitterionic"
 

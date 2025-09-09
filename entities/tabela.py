@@ -62,6 +62,7 @@ class Table:
                     )
         print(self.hash_index.keys())
         print(n_collisions)
+        return n_collisions
 
     def search(self, key):
         for nth_page, page in enumerate(self.pages):

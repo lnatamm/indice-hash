@@ -10,6 +10,7 @@ class Bucket:
     def insert_value(self, value):
         if len(self.data) < self.size:
             self.data.append(value)
+            return False
         else:
             if self.overflow_bucket is None:
                 self._create_overflow_bucket()
@@ -20,3 +21,9 @@ class Bucket:
             return self.data
         else:
             return self.data + self.overflow_bucket.get_data()
+
+    def get_overflow_count(self) -> int:
+        if self.overflow_bucket is None:
+            return 0
+        else:
+            return 1 + self.overflow_bucket.get_overflow_count()
