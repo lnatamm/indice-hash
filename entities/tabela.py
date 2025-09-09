@@ -5,14 +5,14 @@ from utils.hash import Hasher
 
 
 class Table:
-    def __init__(self, page_size, hash_type: str="python", number_of_buckets: int=0) -> None:
+    def __init__(self, page_size, hash_type: str="python", n: int=300_000) -> None:
         self.pages: list[Page] = [Page(size=page_size)]
         self.page_size = page_size
         self.hash_index = {}
         if hash_type.lower() == "python":
             self.hash_function = Hasher().python_hash
         elif hash_type.lower() == "custom":
-            self.hash_function = Hasher(number_of_buckets).custom_hash
+            self.hash_function = Hasher(n).custom_hash
         else:
             raise ValueError("hash_type deve ser 'python' ou 'custom'")
         
@@ -60,6 +60,8 @@ class Table:
                             "page": nth_page
                         }
                     )
+        print(self.hash_index.keys())
+        print(n_collisions)
 
     def search(self, key):
         for nth_page, page in enumerate(self.pages):

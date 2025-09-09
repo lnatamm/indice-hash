@@ -4,7 +4,7 @@ import time
 import json
 
 page_size = 1_000
-bucket_size = 100
+bucket_size = 10
 
 # Carregar o JSON da pasta data
 with open('data/words_dictionary.json', 'r', encoding='utf-8') as file:
@@ -12,7 +12,7 @@ with open('data/words_dictionary.json', 'r', encoding='utf-8') as file:
 
 number_of_buckets = len(data) // bucket_size
 
-table = Table(page_size=page_size, hash_type="custom", number_of_buckets=number_of_buckets)
+table = Table(page_size=page_size, hash_type="custom", n=300_000)
 
 for key, value in data.items():
     table.insert(
