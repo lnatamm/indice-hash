@@ -28,13 +28,14 @@ class Table:
             new_page = Page(size=self.page_size)
             new_page.insert(tuple)
             self.pages.append(new_page)
+            return True
                 
         elif key is not None and value is not None:
             tuple = Tuple(
                 key=key,
                 value=value
             )
-            self.insert(tuple=tuple)
+            return self.insert(tuple=tuple)
         else:
             raise ValueError("Deve fornecer key e value, ou uma tuple")
 

@@ -41,7 +41,7 @@ page_size = st.sidebar.number_input(
 # Tamanho do bucket
 bucket_size = st.sidebar.number_input(
     "Tamanho do Bucket",
-    min_value=5,
+    min_value=1,
     max_value=100,
     value=5,
     step=1,
@@ -69,7 +69,7 @@ if st.sidebar.button("Carregar Dados", type="primary"):
             nb = max(1, (nr // bucket_size) + 1)  # Número de buckets
             
             # Criar tabela
-            table = Table(page_size=page_size, hash_type=hash_type, n=300_000)
+            table = Table(page_size=page_size, hash_type=hash_type)
             
             # Inserir dados
             for key, value in data.items():
